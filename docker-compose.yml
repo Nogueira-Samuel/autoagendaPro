@@ -1,0 +1,109 @@
+version: '3.8'
+
+# AutoAgenda Pro - Docker Compose Configuration
+# Para desenvolvimento local e testes
+
+services:
+  # Backend FastAPI Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autoagenda-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Application
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+
+      # Database (use Supabase URL in production)
+      - DATABASE_URL=${DATABASE_URL}
+
+      # API Keys
+      - API_SECRET_KEY=${API_SECRET_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+
+      # Evolution API
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL}
+      - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME:-autoagenda}
+
+      # Google Calendar
+      - GOOGLE_CALENDAR_CREDENTIALS=${GOOGLE_CALENDAR_CREDENTIALS}
+
+      # Redis
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      # Mount do código para hot-reload em desenvolvimento
+      - ./backend/app:/app/app
+      # Volume para Google Calendar tokens
+      - google-tokens:/app/tokens
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - autoagenda-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: autoagenda-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - autoagenda-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # PostgreSQL Local (opcional - para desenvolvimento sem Supabase)
+  # Descomente se quiser usar PostgreSQL local ao invés de Supabase
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: autoagenda-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=autoagenda
+  #     - POSTGRES_PASSWORD=autoagenda_dev_password
+  #     - POSTGRES_DB=autoagenda
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   networks:
+  #     - autoagenda-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U autoagenda"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+# Networks
+networks:
+  autoagenda-network:
+    driver: bridge
+    name: autoagenda-network
+
+# Volumes
+volumes:
+  redis-data:
+    name: autoagenda-redis-data
+  google-tokens:
+    name: autoagenda-google-tokens
+  # postgres-data:
+  #   name: autoagenda-postgres-data

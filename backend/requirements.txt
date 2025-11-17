@@ -1,0 +1,54 @@
+# FastAPI and ASGI Server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# Pydantic for data validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database - SQLAlchemy with async support
+sqlalchemy==2.0.25
+asyncpg==0.29.0
+
+# HTTP Client
+httpx==0.26.0
+
+# AI Integration - Anthropic Claude
+anthropic==0.8.1
+
+# Google Calendar API
+google-api-python-client==2.116.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+
+# Environment and Configuration
+python-dotenv==1.0.0
+
+# File uploads and forms
+python-multipart==0.0.6
+
+# Authentication and Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Caching - Redis
+redis==5.0.1
+
+# Additional useful packages
+# Database migrations
+alembic==1.13.1
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+httpx==0.26.0  # For testing async endpoints
+
+# Code quality
+black==24.1.1
+flake8==7.0.0
+mypy==1.8.0
+isort==5.13.2
+
+# Production server enhancements
+gunicorn==21.2.0
