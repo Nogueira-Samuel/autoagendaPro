@@ -5,8 +5,6 @@ Core services for AutoAgenda Pro:
 - LLM conversational services (OpenAI, Claude)
 - Conversation management
 - Appointment scheduling logic
-
-Future services:
 - Google Calendar integration
 - Evolution API WhatsApp integration
 """
@@ -29,6 +27,24 @@ from app.services.llm_factory import (
 # Conversation Manager
 from app.services.conversation_manager import ConversationManager
 
+# Google Calendar Service
+from app.services.google_calendar_service import GoogleCalendarService
+
+# WhatsApp Services
+from app.services.whatsapp_base import (
+    WhatsAppServiceBase,
+    WhatsAppMessage,
+    WhatsAppResponse,
+    ConnectionStatus,
+    MediaType,
+    WhatsAppError,
+    WhatsAppConnectionError,
+    WhatsAppRateLimitError,
+    WhatsAppAuthenticationError,
+    WhatsAppMessageError,
+)
+from app.services.whatsapp_service import EvolutionAPIService
+
 __all__ = [
     # Base Classes
     "LLMServiceBase",
@@ -44,4 +60,19 @@ __all__ = [
     "get_llm_pool",
     # Conversation Manager
     "ConversationManager",
+    # Google Calendar
+    "GoogleCalendarService",
+    # WhatsApp Base
+    "WhatsAppServiceBase",
+    "WhatsAppMessage",
+    "WhatsAppResponse",
+    "ConnectionStatus",
+    "MediaType",
+    "WhatsAppError",
+    "WhatsAppConnectionError",
+    "WhatsAppRateLimitError",
+    "WhatsAppAuthenticationError",
+    "WhatsAppMessageError",
+    # WhatsApp Implementation
+    "EvolutionAPIService",
 ]
