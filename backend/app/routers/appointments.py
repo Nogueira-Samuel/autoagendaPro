@@ -1,0 +1,409 @@
+"""
+Appointments Router
+
+CRUD endpoints for appointment management.
+
+All endpoints are multi-tenant aware and require authentication.
+"""
+
+import logging
+from datetime import date
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models import Appointment, Tenant
+from app.schemas.appointment import (
+    AppointmentCreate,
+    AppointmentUpdate,
+    AppointmentResponse,
+)
+from app.services import GoogleCalendarService
+from app.utils.timezone_utils import combine_date_time, add_minutes
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/appointments", tags=["Appointments"])
+
+
+# TODO: This will be replaced with proper JWT authentication in Prompt 8
+async def get_current_user() -> dict[str, Any]:
+    """
+    Placeholder for authentication.
+
+    Will be replaced with proper JWT token validation in Prompt 8.
+
+    Returns:
+        User data from JWT token
+    """
+    # TODO: Implement proper JWT authentication
+    return {"id": 1, "tenant_id": 1, "role": "admin"}
+
+
+@router.get("", response_model=list[AppointmentResponse])
+async def list_appointments(
+    tenant_id: int = Query(..., description="Tenant ID for multi-tenant filtering"),
+    start_date: date | None = Query(None, description="Filter by start date (inclusive)"),
+    end_date: date | None = Query(None, description="Filter by end date (inclusive)"),
+    status: str | None = Query(None, description="Filter by status"),
+    customer_id: int | None = Query(None, description="Filter by customer ID"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> list[Appointment]:
+    """
+    List appointments with filters and pagination.
+
+    Query parameters:
+    - tenant_id: Required - filter by tenant
+    - start_date: Optional - filter appointments from this date
+    - end_date: Optional - filter appointments until this date
+    - status: Optional - filter by status (pending, confirmed, cancelled, etc)
+    - customer_id: Optional - filter by customer
+    - skip: Pagination offset (default: 0)
+    - limit: Pagination limit (default: 100, max: 500)
+
+    Returns:
+        List of appointments matching filters
+    """
+    # Build query with filters
+    query = select(Appointment).where(Appointment.tenant_id == tenant_id)
+
+    if start_date:
+        query = query.where(Appointment.scheduled_date >= start_date)
+
+    if end_date:
+        query = query.where(Appointment.scheduled_date <= end_date)
+
+    if status:
+        query = query.where(Appointment.status == status)
+
+    if customer_id:
+        query = query.where(Appointment.customer_id == customer_id)
+
+    # Order by date and time
+    query = query.order_by(
+        Appointment.scheduled_date.desc(), Appointment.scheduled_time.desc()
+    )
+
+    # Apply pagination
+    query = query.offset(skip).limit(limit)
+
+    # Execute query
+    result = await db.execute(query)
+    appointments = result.scalars().all()
+
+    logger.info(
+        f"Listed appointments: tenant_id={tenant_id}, count={len(appointments)}, "
+        f"filters=(start_date={start_date}, end_date={end_date}, status={status})"
+    )
+
+    return list(appointments)
+
+
+@router.get("/{appointment_id}", response_model=AppointmentResponse)
+async def get_appointment(
+    appointment_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> Appointment:
+    """
+    Get appointment by ID.
+
+    Args:
+        appointment_id: Appointment ID
+
+    Returns:
+        Appointment details
+
+    Raises:
+        HTTPException: 404 if appointment not found
+    """
+    result = await db.execute(
+        select(Appointment).where(Appointment.id == appointment_id)
+    )
+    appointment = result.scalar_one_or_none()
+
+    if not appointment:
+        logger.warning(f"Appointment not found: id={appointment_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Appointment {appointment_id} not found",
+        )
+
+    logger.info(f"Retrieved appointment: id={appointment_id}")
+
+    return appointment
+
+
+@router.post("", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED)
+async def create_appointment(
+    appointment_data: AppointmentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> Appointment:
+    """
+    Create new appointment.
+
+    Also creates corresponding Google Calendar event if tenant has Calendar integration.
+
+    Args:
+        appointment_data: Appointment details
+
+    Returns:
+        Created appointment
+
+    Raises:
+        HTTPException: 400 if validation fails
+    """
+    try:
+        # Create appointment model
+        appointment = Appointment(**appointment_data.model_dump())
+        db.add(appointment)
+        await db.flush()  # Get appointment ID before commit
+
+        # Create Google Calendar event if tenant has integration
+        result = await db.execute(
+            select(Tenant).where(Tenant.id == appointment.tenant_id)
+        )
+        tenant = result.scalar_one()
+
+        if tenant.has_google_calendar:
+            try:
+                calendar = await GoogleCalendarService.create_from_tenant(tenant)
+
+                # Calculate start and end datetime
+                start_dt = combine_date_time(
+                    appointment.scheduled_date,
+                    appointment.scheduled_time,
+                    tenant.timezone,
+                )
+                end_dt = add_minutes(start_dt, appointment.duration_minutes)
+
+                # Create event
+                event = await calendar.create_event(
+                    summary=f"Appointment #{appointment.id}",
+                    description=appointment.notes or "",
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                )
+
+                # Save event ID to appointment
+                appointment.google_calendar_event_id = event["id"]
+
+                logger.info(
+                    f"Created Google Calendar event: appointment_id={appointment.id}, "
+                    f"event_id={event['id']}"
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to create Google Calendar event: {e}")
+                # Don't fail the appointment creation if calendar fails
+                # Just log the error
+
+        # Commit transaction
+        await db.commit()
+        await db.refresh(appointment)
+
+        logger.info(
+            f"Created appointment: id={appointment.id}, tenant_id={appointment.tenant_id}"
+        )
+
+        return appointment
+
+    except Exception as e:
+        await db.rollback()
+        logger.exception(f"Error creating appointment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create appointment: {str(e)}",
+        )
+
+
+@router.put("/{appointment_id}", response_model=AppointmentResponse)
+async def update_appointment(
+    appointment_id: int,
+    appointment_data: AppointmentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> Appointment:
+    """
+    Update appointment.
+
+    Also updates corresponding Google Calendar event if it exists.
+
+    Args:
+        appointment_id: Appointment ID
+        appointment_data: Updated appointment data
+
+    Returns:
+        Updated appointment
+
+    Raises:
+        HTTPException: 404 if appointment not found
+        HTTPException: 400 if update fails
+    """
+    try:
+        # Get appointment
+        result = await db.execute(
+            select(Appointment).where(Appointment.id == appointment_id)
+        )
+        appointment = result.scalar_one_or_none()
+
+        if not appointment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Appointment {appointment_id} not found",
+            )
+
+        # Update fields
+        update_data = appointment_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(appointment, field, value)
+
+        # Update Google Calendar event if exists
+        if appointment.google_calendar_event_id:
+            try:
+                result = await db.execute(
+                    select(Tenant).where(Tenant.id == appointment.tenant_id)
+                )
+                tenant = result.scalar_one()
+
+                calendar = await GoogleCalendarService.create_from_tenant(tenant)
+
+                # Calculate new start and end datetime
+                start_dt = combine_date_time(
+                    appointment.scheduled_date,
+                    appointment.scheduled_time,
+                    tenant.timezone,
+                )
+                end_dt = add_minutes(start_dt, appointment.duration_minutes)
+
+                # Update event
+                await calendar.update_event(
+                    event_id=appointment.google_calendar_event_id,
+                    summary=f"Appointment #{appointment.id}",
+                    description=appointment.notes or "",
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                )
+
+                logger.info(
+                    f"Updated Google Calendar event: appointment_id={appointment.id}, "
+                    f"event_id={appointment.google_calendar_event_id}"
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to update Google Calendar event: {e}")
+                # Don't fail the appointment update if calendar fails
+
+        # Commit transaction
+        await db.commit()
+        await db.refresh(appointment)
+
+        logger.info(f"Updated appointment: id={appointment_id}")
+
+        return appointment
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.exception(f"Error updating appointment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update appointment: {str(e)}",
+        )
+
+
+@router.delete("/{appointment_id}", status_code=status.HTTP_200_OK)
+async def cancel_appointment(
+    appointment_id: int,
+    cancellation_reason: str | None = Query(None, description="Reason for cancellation"),
+    cancelled_by: str = Query("customer", description="Who cancelled (customer/business)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """
+    Cancel appointment.
+
+    Also deletes corresponding Google Calendar event if it exists.
+
+    Args:
+        appointment_id: Appointment ID
+        cancellation_reason: Optional reason for cancellation
+        cancelled_by: Who cancelled (customer or business)
+
+    Returns:
+        {"status": "cancelled", "appointment_id": ...}
+
+    Raises:
+        HTTPException: 404 if appointment not found
+    """
+    try:
+        # Get appointment
+        result = await db.execute(
+            select(Appointment).where(Appointment.id == appointment_id)
+        )
+        appointment = result.scalar_one_or_none()
+
+        if not appointment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Appointment {appointment_id} not found",
+            )
+
+        # Use model method to cancel
+        from app.models.appointment import CancelledBy
+
+        cancelled_by_enum = (
+            CancelledBy.BUSINESS if cancelled_by == "business" else CancelledBy.CUSTOMER
+        )
+        appointment.cancel(reason=cancellation_reason, cancelled_by=cancelled_by_enum)
+
+        # Delete from Google Calendar
+        if appointment.google_calendar_event_id:
+            try:
+                result = await db.execute(
+                    select(Tenant).where(Tenant.id == appointment.tenant_id)
+                )
+                tenant = result.scalar_one()
+
+                calendar = await GoogleCalendarService.create_from_tenant(tenant)
+                await calendar.delete_event(appointment.google_calendar_event_id)
+
+                logger.info(
+                    f"Deleted Google Calendar event: appointment_id={appointment.id}, "
+                    f"event_id={appointment.google_calendar_event_id}"
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to delete Google Calendar event: {e}")
+                # Don't fail the cancellation if calendar delete fails
+
+        # Commit transaction
+        await db.commit()
+
+        logger.info(
+            f"Cancelled appointment: id={appointment_id}, reason={cancellation_reason}"
+        )
+
+        return {
+            "status": "cancelled",
+            "appointment_id": appointment_id,
+            "cancelled_by": cancelled_by,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.exception(f"Error cancelling appointment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to cancel appointment: {str(e)}",
+        )

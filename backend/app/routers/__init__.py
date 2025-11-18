@@ -1,10 +1,15 @@
 """
 API Routers Package
 
-FastAPI route handlers for AutoAgenda Pro.
+REST API endpoints for AutoAgenda Pro:
+- webhooks: WhatsApp message webhooks from Evolution API
+- appointments: Appointment CRUD operations
+- customers: Customer management
+- auth: Authentication and authorization
+
+All routers are multi-tenant aware and use async/await patterns.
 """
 
-# TODO: Import routers here as they are created
-# from .webhooks import router as webhooks_router
-# from .appointments import router as appointments_router
-# from .users import router as users_router
+from app.routers import webhooks, appointments, customers, auth
+
+__all__ = ["webhooks", "appointments", "customers", "auth"]

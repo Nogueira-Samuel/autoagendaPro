@@ -200,11 +200,13 @@ async def root() -> dict[str, str]:
     }
 
 
-# TODO: Incluir routers quando forem criados
-# from app.routers import webhooks, appointments, users
-# app.include_router(webhooks.router, prefix=settings.API_V1_PREFIX, tags=["Webhooks"])
-# app.include_router(appointments.router, prefix=settings.API_V1_PREFIX, tags=["Appointments"])
-# app.include_router(users.router, prefix=settings.API_V1_PREFIX, tags=["Users"])
+# Include API Routers
+from app.routers import webhooks, appointments, customers, auth
+
+app.include_router(webhooks.router, prefix=settings.API_V1_PREFIX)
+app.include_router(appointments.router, prefix=settings.API_V1_PREFIX)
+app.include_router(customers.router, prefix=settings.API_V1_PREFIX)
+app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 
 
 if __name__ == "__main__":

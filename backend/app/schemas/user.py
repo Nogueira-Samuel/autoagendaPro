@@ -98,6 +98,33 @@ class UserCreate(UserBase):
         return v
 
 
+class UserLogin(BaseModel):
+    """
+    Schema para login de usuário.
+
+    Attributes:
+        email: Email do usuário
+        password: Senha do usuário
+        tenant_id: ID do tenant
+    """
+
+    email: EmailStr = Field(
+        ...,
+        description="Email do usuário",
+        examples=["admin@clinica.com"],
+    )
+    password: str = Field(
+        ...,
+        description="Senha do usuário",
+        examples=["Senha123!"],
+    )
+    tenant_id: int = Field(
+        ...,
+        description="ID do tenant",
+        examples=[1],
+    )
+
+
 class UserUpdate(BaseModel):
     """
     Schema para atualização de User.
