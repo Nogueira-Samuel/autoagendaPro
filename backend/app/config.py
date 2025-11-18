@@ -110,3 +110,17 @@ class Settings(BaseSettings):
 
 # Instância global de configurações
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    """
+    Get settings instance.
+
+    Useful for dependency injection in FastAPI routes.
+
+    Example:
+        @router.get("/config")
+        async def get_config(settings: Settings = Depends(get_settings)):
+            return {"app_name": settings.APP_NAME}
+    """
+    return settings
