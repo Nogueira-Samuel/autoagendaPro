@@ -1,45 +1,83 @@
 # 🤖 AutoAgenda Pro
 
-> Sistema inteligente de agendamento via WhatsApp com IA conversacional
+> AI-Powered WhatsApp Appointment Scheduling System
 
-AutoAgenda Pro é uma solução completa para automatização de agendamentos através do WhatsApp, utilizando inteligência artificial Claude para conversas naturais, integração com Google Calendar e Evolution API para mensagens.
+AutoAgenda Pro is a complete multi-tenant SaaS solution for automating appointment scheduling through WhatsApp using AI-powered conversational interfaces. Built with FastAPI, Claude AI, and modern async Python patterns.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-green.svg)](https://fastapi.tiangolo.com/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-orange.svg)](https://www.sqlalchemy.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**[Features](#-features)** | **[Quick Start](#-quick-start)** | **[Documentation](#-documentation)** | **[API Docs](docs/API.md)** | **[Architecture](docs/ARCHITECTURE.md)**
 
 ## 🎯 Features
 
-- ✨ **Conversação Natural com IA**: Utiliza Claude AI (Anthropic) para entender e responder em linguagem natural
-- 📅 **Integração com Google Calendar**: Sincronização automática de compromissos
-- 💬 **WhatsApp Business**: Comunicação via Evolution API
-- 🗄️ **Banco de Dados Robusto**: PostgreSQL via Supabase com suporte assíncrono
-- 🚀 **Alta Performance**: Async/await patterns em toda a aplicação
-- 🔒 **Seguro**: Autenticação JWT, validação de dados com Pydantic v2
-- 🐳 **Docker Ready**: Containerização completa para fácil deployment
-- 📊 **Cache Inteligente**: Redis para otimização de performance
-- 🔄 **Workflows Automatizados**: Integração com N8N
+### Core Capabilities
+
+- ✨ **AI-Powered Conversations**: Natural language understanding with Claude AI (Anthropic) and GPT-4 support
+- 💬 **WhatsApp Integration**: Two-way messaging via Evolution API with multi-instance support
+- 📅 **Calendar Sync**: Automatic Google Calendar event creation, updates, and availability checking
+- 🏢 **Multi-Tenant**: Complete data isolation for SaaS deployment
+- 🔄 **Real-Time Processing**: Async/await patterns throughout for instant responses
+
+### Technical Features
+
+- 🗄️ **Robust Database**: PostgreSQL (Supabase) with SQLAlchemy 2.0 async ORM
+- 🔐 **Secure Authentication**: JWT tokens with bcrypt password hashing
+- ✅ **Data Validation**: Pydantic v2 schemas with Brazilian phone/CPF validation
+- 📊 **Smart Caching**: Redis with graceful degradation
+- 🐳 **Production Ready**: Docker, Alembic migrations, comprehensive logging
+- 🌍 **Brazilian Optimized**: Timezone-aware, Portuguese language, local validators
+
+### Business Features
+
+- 📆 **Appointment Management**: Create, update, cancel with automatic notifications
+- 👥 **Customer Management**: Complete CRM with conversation history
+- ⚙️ **Configurable**: Business hours, services, message templates per tenant
+- 🤖 **Intent Detection**: Automatic understanding of schedule/cancel/reschedule requests
+- 📨 **Auto-Reminders**: Scheduled WhatsApp reminders before appointments
+- 📈 **Scalable**: Designed for horizontal scaling
 
 ## 🛠️ Tech Stack
 
-### Backend
-- **Framework**: FastAPI 0.109.0
-- **Language**: Python 3.11+
-- **Database**: PostgreSQL (Supabase)
-- **ORM**: SQLAlchemy 2.0 (async)
-- **Validation**: Pydantic v2
-- **Cache**: Redis
+### Core Framework
+- **FastAPI** 0.109.0 - Modern async web framework
+- **Python** 3.11+ - Type-safe async programming
+- **Uvicorn** - Lightning-fast ASGI server
+- **Pydantic** v2 - Data validation and serialization
 
-### AI & Integrations
-- **AI**: Anthropic Claude API
-- **Calendar**: Google Calendar API
-- **WhatsApp**: Evolution API
-- **Automation**: N8N Workflows
+### Database & ORM
+- **PostgreSQL** 14+ - Robust relational database (via Supabase)
+- **SQLAlchemy** 2.0 - Async ORM with full type support
+- **Asyncpg** - High-performance async PostgreSQL driver
+- **Alembic** - Database migration management
 
-### DevOps
-- **Containerization**: Docker & Docker Compose
-- **ASGI Server**: Uvicorn
-- **Process Manager**: Gunicorn (production)
+### AI & Machine Learning
+- **Anthropic Claude** 3.5 Sonnet - Primary LLM for conversations
+- **OpenAI GPT-4** - Alternative/fallback LLM provider
+- **LLM Factory Pattern** - Seamless provider switching
+
+### External Integrations
+- **Evolution API** - WhatsApp Business API integration
+- **Google Calendar API** - Service Account authentication
+- **Service Account** - Secure credential management
+
+### Security & Authentication
+- **JWT** - JSON Web Tokens (python-jose)
+- **Bcrypt** - Password hashing (passlib)
+- **HTTPBearer** - Token authentication scheme
+
+### Caching & Performance
+- **Redis** 7+ - In-memory data store
+- **Connection Pooling** - SQLAlchemy pool management
+- **Async I/O** - Non-blocking operations throughout
+
+### DevOps & Deployment
+- **Docker** - Containerization
+- **Docker Compose** - Multi-container orchestration
+- **Alembic** - Version-controlled migrations
+- **Git** - Version control
 
 ## 📋 Prerequisites
 
@@ -173,20 +211,59 @@ mypy app/
 
 ## 🗄️ Database Setup
 
-The application uses PostgreSQL via Supabase. See [database/README.md](database/README.md) for detailed setup instructions.
+The application uses PostgreSQL via Supabase with async SQLAlchemy 2.0. Complete migration management with Alembic.
 
-### Migrations
+### Initial Setup
 
 ```bash
-# Create a new migration
-alembic revision --autogenerate -m "Description"
+cd backend
 
-# Apply migrations
+# Generate initial migration from models
+alembic revision --autogenerate -m "Initial schema"
+
+# Apply all migrations
 alembic upgrade head
 
-# Rollback migration
-alembic downgrade -1
+# Seed test data (optional)
+python -m database.seeds.initial_data
 ```
+
+### Migration Commands
+
+```bash
+# Create new migration
+alembic revision --autogenerate -m "Add column to users"
+
+# Apply migrations
+alembic upgrade head              # Apply all
+alembic upgrade +1                # Apply next one
+
+# Rollback migrations
+alembic downgrade -1              # Rollback last
+alembic downgrade base            # Rollback all
+
+# Check status
+alembic current                   # Show current version
+alembic history                   # Show all versions
+```
+
+### Seed Data
+
+The seed script creates:
+- Test tenant: "Clínica Exemplo"
+- Admin user: `admin@clinica-exemplo.com` / `admin123`
+- 3 sample services
+- Business configuration with default hours
+
+```bash
+# Seed initial data
+python -m database.seeds.initial_data
+
+# Clear all data (with confirmation)
+python -m database.seeds.initial_data --clear
+```
+
+See [backend/database/README.md](backend/database/README.md) for complete database documentation.
 
 ## 🤖 N8N Workflows
 
@@ -225,11 +302,47 @@ Full API documentation is available at `/docs` when running the application.
 
 See [backend/.env.example](backend/.env.example) for a complete list of required environment variables.
 
-## 📖 Additional Documentation
+## 📖 Documentation
 
-- [Database Setup](database/README.md)
-- [N8N Workflows](n8n/README.md)
-- [API Documentation](docs/README.md)
+### Complete Guides
+
+- **[API Reference](docs/API.md)** - Complete REST API documentation with examples
+- **[Architecture](docs/ARCHITECTURE.md)** - System design, data flow, and scalability
+- **[Database Setup](backend/database/README.md)** - Migrations, seeding, and schema
+
+### Key Topics
+
+- **Authentication**: JWT-based with refresh tokens
+- **Multi-Tenant**: Complete tenant isolation strategies
+- **WhatsApp Integration**: Evolution API setup and webhooks
+- **AI Configuration**: LLM provider setup and customization
+- **Google Calendar**: Service Account configuration
+- **Deployment**: Production deployment strategies
+
+### API Endpoints
+
+See [docs/API.md](docs/API.md) for complete documentation. Quick reference:
+
+```bash
+# Authentication
+POST   /api/v1/auth/register        # Register user
+POST   /api/v1/auth/login          # Login
+GET    /api/v1/auth/me             # Get current user
+
+# Appointments
+GET    /api/v1/appointments         # List appointments
+POST   /api/v1/appointments         # Create appointment
+PUT    /api/v1/appointments/{id}    # Update appointment
+DELETE /api/v1/appointments/{id}    # Cancel appointment
+
+# Customers
+GET    /api/v1/customers            # List customers
+POST   /api/v1/customers            # Create customer
+GET    /api/v1/customers/phone/{phone}  # Find by phone
+
+# Webhooks
+POST   /api/v1/webhooks/whatsapp    # WhatsApp messages
+```
 
 ## 🤝 Contributing
 
