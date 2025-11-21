@@ -85,9 +85,9 @@ app = FastAPI(
     title=settings.APP_NAME,
     description=settings.APP_DESCRIPTION,
     version=settings.APP_VERSION,
-    docs_url="/docs" if not settings.is_production else None,
-    redoc_url="/redoc" if not settings.is_production else None,
-    openapi_url="/openapi.json" if not settings.is_production else None,
+    docs_url="/docs",  # Always enabled for testing
+    redoc_url="/redoc",  # Always enabled for testing
+    openapi_url="/openapi.json",  # Always enabled for testing
     lifespan=lifespan,
 )
 
@@ -208,7 +208,8 @@ async def root() -> dict[str, str]:
     return {
         "message": "Welcome to AutoAgenda Pro API",
         "version": settings.APP_VERSION,
-        "docs": "/docs" if not settings.is_production else "Documentation disabled in production",
+        "docs": "/docs",
+        "redoc": "/redoc",
     }
 
 
