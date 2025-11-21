@@ -45,8 +45,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
-# Copia o código da aplicação
+# Copia o código da aplicação e arquivos de migration
 COPY --chown=appuser:appuser ./app /app/app
+COPY --chown=appuser:appuser ./alembic /app/alembic
+COPY --chown=appuser:appuser ./alembic.ini /app/alembic.ini
 
 # Muda para usuário não-root
 USER appuser
