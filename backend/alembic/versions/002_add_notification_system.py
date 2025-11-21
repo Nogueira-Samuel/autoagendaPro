@@ -3,7 +3,7 @@
 Adds notification_logs table and notification fields to business_config.
 
 Revision ID: 002_notification_system
-Revises: 001_initial_schema
+Revises: 001
 Create Date: 2024-11-21
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '002_notification_system'
-down_revision = '001_initial_schema'
+down_revision = '001'
 branch_labels = None
 depends_on = None
 
