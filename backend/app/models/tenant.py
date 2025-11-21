@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from app.models.customer import Customer
     from app.models.appointment import Appointment
     from app.models.conversation import Conversation
+    from app.models.notification_log import NotificationLog
 
 
 class TenantPlan(str, enum.Enum):
@@ -180,6 +181,13 @@ class Tenant(Base):
 
     conversations: Mapped[list["Conversation"]] = relationship(
         "Conversation",
+        back_populates="tenant",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    notification_logs: Mapped[list["NotificationLog"]] = relationship(
+        "NotificationLog",
         back_populates="tenant",
         cascade="all, delete-orphan",
         lazy="selectin"

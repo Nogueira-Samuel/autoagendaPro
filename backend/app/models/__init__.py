@@ -14,6 +14,7 @@ Models:
     - Customer: End customers who book appointments
     - Appointment: Scheduled appointments
     - Conversation: WhatsApp conversation history
+    - NotificationLog: Notification delivery logs
 """
 
 # Import Base first
@@ -35,6 +36,7 @@ from app.models.conversation import (
     MessageDirection,
     MessageType,
 )
+from app.models.notification_log import NotificationLog
 
 # Expose all models and enums
 __all__ = [
@@ -48,6 +50,7 @@ __all__ = [
     "Customer",
     "Appointment",
     "Conversation",
+    "NotificationLog",
     # Enums - Tenant
     "TenantPlan",
     # Enums - User

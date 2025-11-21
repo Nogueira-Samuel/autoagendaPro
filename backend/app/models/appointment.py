@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from app.models.tenant import Tenant
     from app.models.customer import Customer
     from app.models.service import Service
+    from app.models.notification_log import NotificationLog
 
 
 class AppointmentStatus(str, enum.Enum):
@@ -210,6 +211,13 @@ class Appointment(Base):
     service: Mapped["Service"] = relationship(
         "Service",
         back_populates="appointments",
+        lazy="selectin"
+    )
+
+    notification_logs: Mapped[list["NotificationLog"]] = relationship(
+        "NotificationLog",
+        back_populates="appointment",
+        cascade="all, delete-orphan",
         lazy="selectin"
     )
 
