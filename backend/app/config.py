@@ -5,7 +5,7 @@ Gerenciamento centralizado de configurações usando Pydantic Settings.
 Carrega variáveis de ambiente e fornece validação de tipos.
 """
 
-from typing import Optional
+from typing import Optional, Union
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     REDIS_CACHE_TTL: int = Field(default=3600, description="Redis cache TTL in seconds")
 
     # CORS Settings
-    ALLOWED_ORIGINS: list[str] = Field(
+    ALLOWED_ORIGINS: Union[str, list[str]] = Field(
         default=["http://localhost:3000", "http://localhost:8000"],
         description="Allowed CORS origins"
     )
@@ -76,6 +76,32 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore"
     )
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        """
+        Parse ALLOWED_ORIGINS from string or list.
+
+        Accepts:
+        - "*" -> ["*"]  (wildcard for all origins)
+        - "http://a.com,http://b.com" -> ["http://a.com", "http://b.com"]
+        - ["http://a.com"] -> ["http://a.com"]  (already a list)
+
+        Examples:
+            >>> parse_allowed_origins("*")
+            ["*"]
+            >>> parse_allowed_origins("http://localhost:3000,http://localhost:8000")
+            ["http://localhost:3000", "http://localhost:8000"]
+        """
+        if isinstance(v, str):
+            # Handle wildcard
+            if v.strip() == "*":
+                return ["*"]
+            # Handle comma-separated string
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        # If already a list, return as-is
+        return v
 
     @field_validator("ENVIRONMENT")
     @classmethod
