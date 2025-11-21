@@ -15,14 +15,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Appointment, Tenant
+from app.models import Appointment
 from app.schemas.appointment import (
     AppointmentCreate,
     AppointmentUpdate,
     AppointmentResponse,
 )
-from app.services import GoogleCalendarService
-from app.utils.timezone_utils import combine_date_time, add_minutes
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +147,6 @@ async def create_appointment(
     """
     Create new appointment.
 
-    Also creates corresponding Google Calendar event if tenant has Calendar integration.
-
     Args:
         appointment_data: Appointment details
 
@@ -165,45 +161,6 @@ async def create_appointment(
         appointment = Appointment(**appointment_data.model_dump())
         db.add(appointment)
         await db.flush()  # Get appointment ID before commit
-
-        # Create Google Calendar event if tenant has integration
-        result = await db.execute(
-            select(Tenant).where(Tenant.id == appointment.tenant_id)
-        )
-        tenant = result.scalar_one()
-
-        if tenant.has_google_calendar:
-            try:
-                calendar = await GoogleCalendarService.create_from_tenant(tenant)
-
-                # Calculate start and end datetime
-                start_dt = combine_date_time(
-                    appointment.scheduled_date,
-                    appointment.scheduled_time,
-                    tenant.timezone,
-                )
-                end_dt = add_minutes(start_dt, appointment.duration_minutes)
-
-                # Create event
-                event = await calendar.create_event(
-                    summary=f"Appointment #{appointment.id}",
-                    description=appointment.notes or "",
-                    start_datetime=start_dt,
-                    end_datetime=end_dt,
-                )
-
-                # Save event ID to appointment
-                appointment.google_calendar_event_id = event["id"]
-
-                logger.info(
-                    f"Created Google Calendar event: appointment_id={appointment.id}, "
-                    f"event_id={event['id']}"
-                )
-
-            except Exception as e:
-                logger.error(f"Failed to create Google Calendar event: {e}")
-                # Don't fail the appointment creation if calendar fails
-                # Just log the error
 
         # Commit transaction
         await db.commit()
@@ -234,8 +191,6 @@ async def update_appointment(
     """
     Update appointment.
 
-    Also updates corresponding Google Calendar event if it exists.
-
     Args:
         appointment_id: Appointment ID
         appointment_data: Updated appointment data
@@ -264,42 +219,6 @@ async def update_appointment(
         update_data = appointment_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(appointment, field, value)
-
-        # Update Google Calendar event if exists
-        if appointment.google_calendar_event_id:
-            try:
-                result = await db.execute(
-                    select(Tenant).where(Tenant.id == appointment.tenant_id)
-                )
-                tenant = result.scalar_one()
-
-                calendar = await GoogleCalendarService.create_from_tenant(tenant)
-
-                # Calculate new start and end datetime
-                start_dt = combine_date_time(
-                    appointment.scheduled_date,
-                    appointment.scheduled_time,
-                    tenant.timezone,
-                )
-                end_dt = add_minutes(start_dt, appointment.duration_minutes)
-
-                # Update event
-                await calendar.update_event(
-                    event_id=appointment.google_calendar_event_id,
-                    summary=f"Appointment #{appointment.id}",
-                    description=appointment.notes or "",
-                    start_datetime=start_dt,
-                    end_datetime=end_dt,
-                )
-
-                logger.info(
-                    f"Updated Google Calendar event: appointment_id={appointment.id}, "
-                    f"event_id={appointment.google_calendar_event_id}"
-                )
-
-            except Exception as e:
-                logger.error(f"Failed to update Google Calendar event: {e}")
-                # Don't fail the appointment update if calendar fails
 
         # Commit transaction
         await db.commit()
@@ -330,8 +249,6 @@ async def cancel_appointment(
 ) -> dict[str, Any]:
     """
     Cancel appointment.
-
-    Also deletes corresponding Google Calendar event if it exists.
 
     Args:
         appointment_id: Appointment ID
@@ -364,26 +281,6 @@ async def cancel_appointment(
             CancelledBy.BUSINESS if cancelled_by == "business" else CancelledBy.CUSTOMER
         )
         appointment.cancel(reason=cancellation_reason, cancelled_by=cancelled_by_enum)
-
-        # Delete from Google Calendar
-        if appointment.google_calendar_event_id:
-            try:
-                result = await db.execute(
-                    select(Tenant).where(Tenant.id == appointment.tenant_id)
-                )
-                tenant = result.scalar_one()
-
-                calendar = await GoogleCalendarService.create_from_tenant(tenant)
-                await calendar.delete_event(appointment.google_calendar_event_id)
-
-                logger.info(
-                    f"Deleted Google Calendar event: appointment_id={appointment.id}, "
-                    f"event_id={appointment.google_calendar_event_id}"
-                )
-
-            except Exception as e:
-                logger.error(f"Failed to delete Google Calendar event: {e}")
-                # Don't fail the cancellation if calendar delete fails
 
         # Commit transaction
         await db.commit()
