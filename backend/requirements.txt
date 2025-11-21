@@ -5,6 +5,7 @@ uvicorn[standard]==0.24.0
 # Pydantic for data validation
 pydantic==2.5.0
 pydantic-settings==2.1.0
+email-validator==2.1.0
 
 # Database - SQLAlchemy with async support
 sqlalchemy==2.0.23
