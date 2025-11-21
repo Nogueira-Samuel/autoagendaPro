@@ -43,14 +43,6 @@ class Settings(BaseSettings):
     CLAUDE_MAX_TOKENS: int = Field(default=1024, description="Max tokens for Claude responses")
     CLAUDE_TEMPERATURE: float = Field(default=0.7, description="Temperature for Claude responses")
 
-    # Google Calendar API Settings
-    GOOGLE_CALENDAR_CREDENTIALS: str = Field(..., description="Google Calendar API credentials JSON")
-    GOOGLE_CALENDAR_TOKEN_PATH: str = Field(default="token.json", description="Path to store OAuth token")
-    GOOGLE_CALENDAR_SCOPES: list[str] = Field(
-        default=["https://www.googleapis.com/auth/calendar"],
-        description="Google Calendar API scopes"
-    )
-
     # Evolution API Settings (WhatsApp)
     EVOLUTION_API_URL: str = Field(..., description="Evolution API base URL")
     EVOLUTION_API_KEY: str = Field(..., description="Evolution API authentication key")
@@ -71,6 +63,12 @@ class Settings(BaseSettings):
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = Field(default=60, description="API rate limit per minute")
+
+    # Notification Settings
+    NOTIFICATION_REMINDER_24H: bool = Field(default=True, description="Enable 24-hour appointment reminders")
+    NOTIFICATION_REMINDER_1H: bool = Field(default=True, description="Enable 1-hour appointment reminders")
+    NOTIFICATION_CONFIRMATION: bool = Field(default=True, description="Enable appointment confirmation messages")
+    NOTIFICATION_THANKS: bool = Field(default=True, description="Enable thank you messages after appointments")
 
     model_config = SettingsConfigDict(
         env_file=".env",

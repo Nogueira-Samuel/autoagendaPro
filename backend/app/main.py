@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.database import DatabaseManager, create_tables
+from app.scheduler import start_scheduler, stop_scheduler
 
 # Configuração de logging
 logging.basicConfig(
@@ -53,6 +54,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("🔧 Creating database tables (development mode)...")
             await create_tables()
 
+        # Inicia o scheduler de notificações
+        logger.info("⏰ Starting notification scheduler...")
+        start_scheduler()
+
         logger.info("✅ Application started successfully!")
 
         yield
@@ -64,7 +69,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         # Shutdown
         logger.info("🛑 Shutting down AutoAgenda Pro...")
+
+        # Para o scheduler
+        logger.info("⏰ Stopping notification scheduler...")
+        stop_scheduler()
+
+        # Fecha conexão com banco de dados
         await DatabaseManager.close()
+
         logger.info("✅ Application shutdown complete!")
 
 
@@ -201,12 +213,13 @@ async def root() -> dict[str, str]:
 
 
 # Include API Routers
-from app.routers import webhooks, appointments, customers, auth
+from app.routers import webhooks, appointments, customers, auth, notifications
 
 app.include_router(webhooks.router, prefix=settings.API_V1_PREFIX)
 app.include_router(appointments.router, prefix=settings.API_V1_PREFIX)
 app.include_router(customers.router, prefix=settings.API_V1_PREFIX)
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
+app.include_router(notifications.router, prefix=settings.API_V1_PREFIX)
 
 
 if __name__ == "__main__":

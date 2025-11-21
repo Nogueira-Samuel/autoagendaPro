@@ -191,6 +191,27 @@ Se precisar reagendar, é só me chamar!
         """
     )
 
+    # Notification Settings
+    notify_owner: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Se deve notificar o dono do negócio sobre agendamentos"
+    )
+
+    owner_phone: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="Telefone do dono para receber notificações"
+    )
+
+    auto_send_reminders: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+        comment="Se deve enviar lembretes automaticamente"
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
