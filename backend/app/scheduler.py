@@ -3,8 +3,9 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from app.config import settings
 from app.models.appointment import Appointment
 from app.models.notification_log import NotificationLog
 from app.services.notification_service import NotificationService
@@ -13,17 +14,33 @@ logger = logging.getLogger(__name__)
 
 scheduler = BackgroundScheduler()
 
-def get_db():
-    """Get database session"""
-    db = SessionLocal()
-    try:
-        return db
-    finally:
-        pass  # Don't close here, close in job functions
+# Create synchronous engine for background jobs
+# APScheduler runs in threads, not async context
+def get_sync_engine():
+    """Get synchronous database engine for scheduler"""
+    database_url = settings.DATABASE_URL
+    # Convert to sync URL (remove +asyncpg)
+    if "postgresql+asyncpg://" in database_url:
+        database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
+    return create_engine(
+        database_url,
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
+
+# Create session factory for scheduler
+sync_engine = get_sync_engine()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
+
+def get_db_session() -> Session:
+    """Get database session for scheduler jobs"""
+    return SessionLocal()
 
 async def send_24h_reminders_job():
     """Job: Send 24 hour reminders"""
-    db = get_db()
+    db = get_db_session()
     try:
         logger.info("Running 24h reminder job...")
 
@@ -64,7 +81,7 @@ async def send_24h_reminders_job():
 
 async def send_1h_reminders_job():
     """Job: Send 1 hour reminders"""
-    db = get_db()
+    db = get_db_session()
     try:
         logger.info("Running 1h reminder job...")
 
@@ -125,7 +142,7 @@ async def send_1h_reminders_job():
 
 async def send_thanks_job():
     """Job: Send thank you messages after completed appointments"""
-    db = get_db()
+    db = get_db_session()
     try:
         logger.info("Running thanks message job...")
 
