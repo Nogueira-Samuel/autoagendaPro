@@ -61,6 +61,10 @@ class DatabaseManager:
                 poolclass=pool_class,
                 pool_pre_ping=True,  # Verifica conexões antes de usar
                 pool_recycle=3600,   # Recicla conexões após 1 hora
+                connect_args={
+                    "statement_cache_size": 0,
+                    "prepared_statement_cache_size": 0,
+                }
             )
 
         return cls._engine
