@@ -8,7 +8,7 @@ from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.models.business_config import BusinessConfig
 from app.core.templates import MessageTemplates
-from app.core.config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
