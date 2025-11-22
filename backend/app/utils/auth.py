@@ -36,8 +36,8 @@ def get_password_hash(password: str) -> str:
     """
     Hash password using bcrypt.
 
-    Bcrypt is a secure password hashing function that automatically
-    handles salting and is resistant to rainbow table attacks.
+    Bcrypt has a 72-byte limit, so we truncate the password
+    to ensure compatibility with all inputs.
 
     Args:
         password: Plain text password
