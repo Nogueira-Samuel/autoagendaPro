@@ -38,19 +38,19 @@ def get_password_hash(password: str) -> str:
 
     Bcrypt has a 72-byte limit, so we truncate the password
     to ensure compatibility with all inputs.
-
-    Args:
-        password: Plain text password
-
-    Returns:
-        Hashed password string
-
-    Example:
-        >>> hashed = get_password_hash("mypassword123")
-        >>> print(hashed)
-        $2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW
     """
-    return pwd_context.hash(password)
+    # 1. Transforma a string em bytes
+    password_bytes = password.ecode('utf-8')
+
+    # 2. Corta (fatia) para pegar apenas os primeiros 72 bytes
+    # Isso garente que nunca estoure o limite
+    password_bytes_truncate = password_bytes[:72]
+
+    # 3. Trasnforma de volta para string, ignorando erros se cortar um caractere no meio
+    password_truncate = password_bytes_truncate.decode('utf-8', errors='ignore')
+
+    # 4. Gera o hash com a senhra segura cortada
+    return pwd_context.hash(password_truncate)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
