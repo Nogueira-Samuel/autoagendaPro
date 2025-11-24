@@ -32,7 +32,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
-def get_password_hash_v2(password: str) -> str:
+def get_password_hash(password: str) -> str:
     """
     Hash password using bcrypt.
 
@@ -44,13 +44,14 @@ def get_password_hash_v2(password: str) -> str:
 
     # 2. Corta (fatia) para pegar apenas os primeiros 72 bytes
     # Isso garente que nunca estoure o limite
-    password_bytes_truncate = password_bytes[:72]
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
 
     # 3. Trasnforma de volta para string, ignorando erros se cortar um caractere no meio
-    password_truncate = password_bytes_truncate.decode('utf-8', errors='ignore')
+    password_truncate = password_bytes.decode('utf-8', errors='ignore')
 
     # 4. Gera o hash com a senhra segura cortada
-    return pwd_context.hash(password_truncate)
+    return pwd_context.hash(password_safe)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
