@@ -48,7 +48,7 @@ def get_password_hash(password: str) -> str:
         password_bytes = password_bytes[:72]
 
     # 3. Trasnforma de volta para string, ignorando erros se cortar um caractere no meio
-    password_truncate = password_bytes.decode('utf-8', errors='ignore')
+    password_safe = password_bytes.decode('utf-8', errors='ignore')
 
     # 4. Gera o hash com a senhra segura cortada
     return pwd_context.hash(password_safe)
