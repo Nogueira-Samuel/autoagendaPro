@@ -32,7 +32,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
-def get_password_hash(password: str) -> str:
+def get_password_hash_v2(password: str) -> str:
     """
     Hash password using bcrypt.
 
