@@ -14,30 +14,17 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Customer, Appointment
+from app.models import Customer, Appointment, User
 from app.schemas.customer import (
     CustomerCreate,
     CustomerUpdate,
     CustomerResponse,
 )
+from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/customers", tags=["Customers"])
-
-
-# TODO: This will be replaced with proper JWT authentication in Prompt 8
-async def get_current_user() -> dict[str, Any]:
-    """
-    Placeholder for authentication.
-
-    Will be replaced with proper JWT token validation in Prompt 8.
-
-    Returns:
-        User data from JWT token
-    """
-    # TODO: Implement proper JWT authentication
-    return {"id": 1, "tenant_id": 1, "role": "admin"}
 
 
 @router.get("", response_model=list[CustomerResponse])
@@ -47,7 +34,7 @@ async def list_customers(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> list[Customer]:
     """
     List customers with filters and pagination.
@@ -61,6 +48,17 @@ async def list_customers(
     Returns:
         List of customers matching filters
     """
+    # Validate tenant access - users can only access their own tenant
+    if current_user.tenant_id != tenant_id:
+        logger.warning(
+            f"Unauthorized tenant access attempt: user_tenant={current_user.tenant_id}, "
+            f"requested_tenant={tenant_id}, user_id={current_user.id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You can only access your own tenant's data",
+        )
+
     # Build query with filters
     query = select(Customer).where(Customer.tenant_id == tenant_id)
 
@@ -95,7 +93,7 @@ async def list_customers(
 async def get_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Customer:
     """
     Get customer by ID.
@@ -119,6 +117,17 @@ async def get_customer(
             detail=f"Customer {customer_id} not found",
         )
 
+    # Validate tenant access
+    if customer.tenant_id != current_user.tenant_id:
+        logger.warning(
+            f"Unauthorized access attempt: user_tenant={current_user.tenant_id}, "
+            f"customer_tenant={customer.tenant_id}, user_id={current_user.id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You can only access your own tenant's data",
+        )
+
     logger.info(f"Retrieved customer: id={customer_id}")
 
     return customer
@@ -131,7 +140,7 @@ async def get_customer_appointments(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Get all appointments for a customer.
@@ -160,6 +169,17 @@ async def get_customer_appointments(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Customer {customer_id} not found",
+        )
+
+    # Validate tenant access
+    if customer.tenant_id != current_user.tenant_id:
+        logger.warning(
+            f"Unauthorized access attempt: user_tenant={current_user.tenant_id}, "
+            f"customer_tenant={customer.tenant_id}, user_id={current_user.id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You can only access your own tenant's data",
         )
 
     # Build query
@@ -199,7 +219,7 @@ async def get_customer_by_phone(
     phone: str,
     tenant_id: int = Query(..., description="Tenant ID"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Customer:
     """
     Get customer by phone number.
@@ -216,6 +236,17 @@ async def get_customer_by_phone(
     Raises:
         HTTPException: 404 if customer not found
     """
+    # Validate tenant access
+    if current_user.tenant_id != tenant_id:
+        logger.warning(
+            f"Unauthorized tenant access attempt: user_tenant={current_user.tenant_id}, "
+            f"requested_tenant={tenant_id}, user_id={current_user.id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You can only access your own tenant's data",
+        )
+
     # Clean phone number
     phone_clean = "".join(filter(str.isdigit, phone))
 
@@ -242,7 +273,7 @@ async def get_customer_by_phone(
 async def create_customer(
     customer_data: CustomerCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Customer:
     """
     Create new customer.
@@ -257,6 +288,17 @@ async def create_customer(
         HTTPException: 400 if customer with phone already exists
     """
     try:
+        # Validate tenant access
+        if customer_data.tenant_id != current_user.tenant_id:
+            logger.warning(
+                f"Unauthorized tenant creation attempt: user_tenant={current_user.tenant_id}, "
+                f"data_tenant={customer_data.tenant_id}, user_id={current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only create customers for your own tenant",
+            )
+
         # Check if customer with phone already exists for this tenant
         phone_clean = "".join(filter(str.isdigit, customer_data.phone))
 
@@ -307,7 +349,7 @@ async def update_customer(
     customer_id: int,
     customer_data: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Customer:
     """
     Update customer.
@@ -332,6 +374,17 @@ async def update_customer(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Customer {customer_id} not found",
+            )
+
+        # Validate tenant access
+        if customer.tenant_id != current_user.tenant_id:
+            logger.warning(
+                f"Unauthorized update attempt: user_tenant={current_user.tenant_id}, "
+                f"customer_tenant={customer.tenant_id}, user_id={current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only update your own tenant's customers",
             )
 
         # Update fields
@@ -383,7 +436,7 @@ async def update_customer(
 async def delete_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """
     Delete customer.
@@ -407,6 +460,17 @@ async def delete_customer(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Customer {customer_id} not found",
+            )
+
+        # Validate tenant access
+        if customer.tenant_id != current_user.tenant_id:
+            logger.warning(
+                f"Unauthorized delete attempt: user_tenant={current_user.tenant_id}, "
+                f"customer_tenant={customer.tenant_id}, user_id={current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only delete your own tenant's customers",
             )
 
         # Check for active appointments

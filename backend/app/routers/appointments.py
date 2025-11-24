@@ -15,30 +15,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Appointment
+from app.models import Appointment, User
 from app.schemas.appointment import (
     AppointmentCreate,
     AppointmentUpdate,
     AppointmentResponse,
 )
+from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/appointments", tags=["Appointments"])
-
-
-# TODO: This will be replaced with proper JWT authentication in Prompt 8
-async def get_current_user() -> dict[str, Any]:
-    """
-    Placeholder for authentication.
-
-    Will be replaced with proper JWT token validation in Prompt 8.
-
-    Returns:
-        User data from JWT token
-    """
-    # TODO: Implement proper JWT authentication
-    return {"id": 1, "tenant_id": 1, "role": "admin"}
 
 
 @router.get("", response_model=list[AppointmentResponse])
@@ -51,7 +38,7 @@ async def list_appointments(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> list[Appointment]:
     """
     List appointments with filters and pagination.
@@ -68,6 +55,17 @@ async def list_appointments(
     Returns:
         List of appointments matching filters
     """
+    # Validate tenant access - users can only access their own tenant
+    if current_user.tenant_id != tenant_id:
+        logger.warning(
+            f"Unauthorized tenant access attempt: user_tenant={current_user.tenant_id}, "
+            f"requested_tenant={tenant_id}, user_id={current_user.id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You can only access your own tenant's data",
+        )
+
     # Build query with filters
     query = select(Appointment).where(Appointment.tenant_id == tenant_id)
 
@@ -107,7 +105,7 @@ async def list_appointments(
 async def get_appointment(
     appointment_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Appointment:
     """
     Get appointment by ID.
@@ -133,6 +131,17 @@ async def get_appointment(
             detail=f"Appointment {appointment_id} not found",
         )
 
+    # Validate tenant access
+    if appointment.tenant_id != current_user.tenant_id:
+        logger.warning(
+            f"Unauthorized access attempt: user_tenant={current_user.tenant_id}, "
+            f"appointment_tenant={appointment.tenant_id}, user_id={current_user.id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You can only access your own tenant's data",
+        )
+
     logger.info(f"Retrieved appointment: id={appointment_id}")
 
     return appointment
@@ -142,7 +151,7 @@ async def get_appointment(
 async def create_appointment(
     appointment_data: AppointmentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Appointment:
     """
     Create new appointment.
@@ -157,6 +166,17 @@ async def create_appointment(
         HTTPException: 400 if validation fails
     """
     try:
+        # Validate tenant access
+        if appointment_data.tenant_id != current_user.tenant_id:
+            logger.warning(
+                f"Unauthorized tenant creation attempt: user_tenant={current_user.tenant_id}, "
+                f"data_tenant={appointment_data.tenant_id}, user_id={current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only create appointments for your own tenant",
+            )
+
         # Create appointment model
         appointment = Appointment(**appointment_data.model_dump())
         db.add(appointment)
@@ -186,7 +206,7 @@ async def update_appointment(
     appointment_id: int,
     appointment_data: AppointmentUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Appointment:
     """
     Update appointment.
@@ -213,6 +233,17 @@ async def update_appointment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Appointment {appointment_id} not found",
+            )
+
+        # Validate tenant access
+        if appointment.tenant_id != current_user.tenant_id:
+            logger.warning(
+                f"Unauthorized update attempt: user_tenant={current_user.tenant_id}, "
+                f"appointment_tenant={appointment.tenant_id}, user_id={current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only update your own tenant's appointments",
             )
 
         # Update fields
@@ -245,7 +276,7 @@ async def cancel_appointment(
     cancellation_reason: str | None = Query(None, description="Reason for cancellation"),
     cancelled_by: str = Query("customer", description="Who cancelled (customer/business)"),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Cancel appointment.
@@ -272,6 +303,17 @@ async def cancel_appointment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Appointment {appointment_id} not found",
+            )
+
+        # Validate tenant access
+        if appointment.tenant_id != current_user.tenant_id:
+            logger.warning(
+                f"Unauthorized cancel attempt: user_tenant={current_user.tenant_id}, "
+                f"appointment_tenant={appointment.tenant_id}, user_id={current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only cancel your own tenant's appointments",
             )
 
         # Use model method to cancel
