@@ -85,17 +85,31 @@ app = FastAPI(
     title=settings.APP_NAME,
     description=settings.APP_DESCRIPTION,
     version=settings.APP_VERSION,
-    docs_url="/docs",  # Always enabled for testing
-    redoc_url="/redoc",  # Always enabled for testing
-    openapi_url="/openapi.json",  # Always enabled for testing
+    # Disable docs in production for security
+    docs_url="/docs" if not settings.is_production else None,
+    redoc_url="/redoc" if not settings.is_production else None,
+    openapi_url="/openapi.json" if not settings.is_production else None,
     lifespan=lifespan,
 )
 
 
 # Configuração de CORS
+# Validate CORS configuration for security
+if "*" in settings.ALLOWED_ORIGINS:
+    # Cannot use wildcard with credentials
+    logger.warning(
+        "SECURITY WARNING: Using wildcard (*) in ALLOWED_ORIGINS with "
+        "allow_credentials=True is a security risk. Using specific origins only."
+    )
+    cors_origins = [
+        origin for origin in settings.ALLOWED_ORIGINS if origin != "*"
+    ]
+else:
+    cors_origins = settings.ALLOWED_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
