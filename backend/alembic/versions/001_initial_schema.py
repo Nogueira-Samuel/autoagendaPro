@@ -112,19 +112,12 @@ def downgrade() -> None:
     """
     Revert migration changes.
 
-    Drops all tables in reverse order of dependencies.
+    NOTE: This only drops enums. To properly downgrade including tables,
+    you need to generate the full migration with:
+        alembic revision --autogenerate -m "Initial schema"
     """
 
-    # Drop tables in reverse order (to handle foreign key constraints)
-    op.drop_table('conversations')
-    op.drop_table('appointments')
-    op.drop_table('customers')
-    op.drop_table('services')
-    op.drop_table('business_configs')
-    op.drop_table('users')
-    op.drop_table('tenants')
-
-    # Drop enums
+    # Drop enums only (tables should be dropped by subsequent migrations)
     op.execute("DROP TYPE IF EXISTS message_type")
     op.execute("DROP TYPE IF EXISTS message_direction")
     op.execute("DROP TYPE IF EXISTS cancelled_by")
