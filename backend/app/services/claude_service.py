@@ -7,7 +7,7 @@ Otimizado para conversas em português brasileiro.
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from anthropic import AsyncAnthropic, APIError, RateLimitError, APIConnectionError
@@ -311,7 +311,7 @@ Se alguma informação não estiver presente, omita a tag."""
             tokens_used=tokens_used,
             model_used=self.model,
             provider="claude",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
 
     async def _retry_with_backoff(

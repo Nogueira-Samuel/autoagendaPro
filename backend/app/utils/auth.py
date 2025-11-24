@@ -9,7 +9,7 @@ Uses:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -114,14 +114,14 @@ def create_access_token(
 
     # Set expiration time
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
     # Add expiration to payload
-    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
+    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
 
     # Encode JWT
     encoded_jwt = jwt.encode(
@@ -346,11 +346,11 @@ def create_refresh_token(
 
     # Longer expiration for refresh tokens
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(days=7)
+        expire = datetime.now(timezone.utc) + timedelta(days=7)
 
-    to_encode.update({"exp": expire, "iat": datetime.utcnow(), "type": "refresh"})
+    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc), "type": "refresh"})
 
     encoded_jwt = jwt.encode(
         to_encode,

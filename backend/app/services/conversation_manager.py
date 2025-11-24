@@ -6,7 +6,7 @@ Coordena: LLM, banco de dados, validações e ações de agendamento.
 """
 
 import logging
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -246,7 +246,7 @@ class ConversationManager:
         user_conv = Conversation(
             tenant_id=tenant_id,
             customer_id=customer_id,
-            message_id=f"user_{datetime.utcnow().timestamp()}",
+            message_id=f"user_{datetime.now(timezone.utc).timestamp()}",
             direction=MessageDirection.INBOUND,
             message_type=MessageType.TEXT,
             content=user_message,
@@ -260,7 +260,7 @@ class ConversationManager:
         assistant_conv = Conversation(
             tenant_id=tenant_id,
             customer_id=customer_id,
-            message_id=f"assistant_{datetime.utcnow().timestamp()}",
+            message_id=f"assistant_{datetime.now(timezone.utc).timestamp()}",
             direction=MessageDirection.OUTBOUND,
             message_type=MessageType.TEXT,
             content=assistant_message,

@@ -8,7 +8,7 @@ sanitization, and secure random values.
 import hashlib
 import secrets
 import string
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def generate_api_key(length: int = 32) -> str:
@@ -92,7 +92,7 @@ def generate_instance_name(tenant_name: str) -> str:
     name = name[:50]
 
     # Add timestamp hash for uniqueness
-    timestamp = str(int(datetime.utcnow().timestamp()))
+    timestamp = str(int(datetime.now(timezone.utc).timestamp()))
     hash_suffix = hashlib.md5(timestamp.encode()).hexdigest()[:6]
 
     return f"{name}-{hash_suffix}"

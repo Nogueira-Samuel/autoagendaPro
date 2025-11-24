@@ -6,7 +6,7 @@ Pessoas que agendam consultas/serviços via WhatsApp.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -276,7 +276,7 @@ class Customer(Base):
 
     def update_last_interaction(self) -> None:
         """Atualiza a data/hora da última interação para agora."""
-        self.last_interaction = datetime.utcnow()
+        self.last_interaction = datetime.now(timezone.utc)
 
 
 # Event listener para normalizar telefone antes de inserir/atualizar

@@ -12,7 +12,7 @@ Endpoints:
 """
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -172,7 +172,7 @@ async def login(
 
         # Update last login timestamp
         from datetime import datetime
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         await db.commit()
 
         # Generate JWT access token

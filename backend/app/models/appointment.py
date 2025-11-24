@@ -6,7 +6,7 @@ Representa compromissos agendados por clientes via WhatsApp.
 """
 
 import enum
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -382,7 +382,7 @@ class Appointment(Base):
     def send_reminder(self) -> None:
         """Marca que o lembrete foi enviado."""
         self.reminder_sent = True
-        self.reminder_sent_at = datetime.utcnow()
+        self.reminder_sent_at = datetime.now(timezone.utc)
 
     def hours_until_appointment(self) -> float:
         """

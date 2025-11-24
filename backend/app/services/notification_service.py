@@ -1,7 +1,7 @@
 import httpx
 import logging
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.notification_log import NotificationLog
 from app.models.appointment import Appointment
@@ -67,7 +67,7 @@ class NotificationService:
             notification_type=notification_type,
             message_text=message_text,
             status=status,
-            sent_at=datetime.utcnow() if status == 'sent' else None,
+            sent_at=datetime.now(timezone.utc) if status == 'sent' else None,
             error_message=error_message
         )
         self.db.add(log)

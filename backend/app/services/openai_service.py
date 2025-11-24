@@ -7,7 +7,7 @@ Suporta GPT-4 Turbo e GPT-3.5 Turbo com fallback automático.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from openai import AsyncOpenAI, APIError, RateLimitError, APIConnectionError
@@ -297,7 +297,7 @@ class OpenAIService(LLMServiceBase):
             tokens_used=tokens_used,
             model_used=model_to_use,
             provider="openai",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
 
     async def _retry_with_backoff(
