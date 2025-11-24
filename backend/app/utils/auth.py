@@ -36,6 +36,9 @@ def get_password_hash(password: str) -> str:
     """
     Hash password using bcrypt.
 
+    Bcrypt has a 72-byte limit, so we truncate the password
+    to ensure compatibility with all inputs.
+
     Bcrypt is a secure password hashing function that automatically
     handles salting and is resistant to rainbow table attacks.
 
@@ -50,7 +53,10 @@ def get_password_hash(password: str) -> str:
         >>> print(hashed)
         $2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW
     """
-    return pwd_context.hash(password)
+    # Truncate to 72 bytes to prevent bcrypt errors
+    password_bytes = password.encode('utf-8')[:72]
+    password_truncated = password_bytes.decode('utf-8', errors='ignore')
+    return pwd_context.hash(password_truncated)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -71,7 +77,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         >>> verify_password("wrongpassword", hashed)
         False
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    # Truncate to 72 bytes to match hashing behavior
+    password_bytes = plain_password.encode('utf-8')[:72]
+    password_truncated = password_bytes.decode('utf-8', errors='ignore')
+    return pwd_context.verify(password_truncated, hashed_password)
 
 
 def create_access_token(
