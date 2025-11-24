@@ -40,7 +40,7 @@ def get_password_hash(password: str) -> str:
     to ensure compatibility with all inputs.
     """
     # 1. Transforma a string em bytes
-    password_bytes = password.ecode('utf-8')
+    password_bytes = password.encode('utf-8')
 
     # 2. Corta (fatia) para pegar apenas os primeiros 72 bytes
     # Isso garente que nunca estoure o limite
