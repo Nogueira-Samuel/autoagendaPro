@@ -190,19 +190,48 @@ async def general_exception_handler(
     summary="Health Check",
     description="Verifica o status da aplicação e suas dependências",
 )
-async def health_check() -> dict[str, str | bool]:
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
-    Endpoint de health check.
+    Endpoint de health check with dependency verification.
+
+    Checks:
+    - Application status
+    - Database connectivity
+    - Basic configuration
 
     Returns:
-        dict: Status da aplicação
+        dict: Status da aplicação e dependências
     """
-    return {
+    health_status = {
         "status": "healthy",
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
+        "checks": {},
     }
+
+    # Check database connectivity
+    try:
+        # Simple query to verify database is responding
+        from sqlalchemy import text
+        result = await db.execute(text("SELECT 1"))
+        result.scalar()
+        health_status["checks"]["database"] = "healthy"
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        health_status["status"] = "unhealthy"
+        health_status["checks"]["database"] = f"unhealthy: {str(e)[:100]}"
+
+    # Check critical configuration
+    try:
+        if not settings.API_SECRET_KEY or len(settings.API_SECRET_KEY) < 32:
+            health_status["checks"]["configuration"] = "warning: weak secret key"
+        else:
+            health_status["checks"]["configuration"] = "healthy"
+    except Exception as e:
+        health_status["checks"]["configuration"] = f"error: {str(e)}"
+
+    return health_status
 
 
 # Root Endpoint
