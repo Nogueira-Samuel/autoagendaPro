@@ -116,6 +116,11 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# Rate Limiting Middleware
+from app.middleware import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware)
+logger.info(f"Rate limiting {'enabled' if settings.RATE_LIMIT_ENABLED else 'disabled'}: {settings.RATE_LIMIT_PER_MINUTE} requests/minute")
+
 
 # Exception Handlers
 @app.exception_handler(StarletteHTTPException)
