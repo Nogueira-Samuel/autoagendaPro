@@ -59,11 +59,12 @@ class DatabaseManager:
                 pool_size=settings.DB_POOL_SIZE,
                 max_overflow=settings.DB_MAX_OVERFLOW,
                 poolclass=pool_class,
-                pool_pre_ping=True,  # Verifica conexões antes de usar
-                pool_recycle=3600,   # Recicla conexões após 1 hora
+                pool_pre_ping=settings.DB_POOL_PRE_PING,
+                pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
                 connect_args={
                     "statement_cache_size": 0,
                     "prepared_statement_cache_size": 0,
+                    "timeout": settings.DB_CONNECT_TIMEOUT,
                 }
             )
 

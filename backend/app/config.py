@@ -63,6 +63,32 @@ class Settings(BaseSettings):
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = Field(default=60, description="API rate limit per minute")
+    RATE_LIMIT_ENABLED: bool = Field(default=True, description="Enable rate limiting")
+
+    # Pagination Settings
+    DEFAULT_PAGE_SIZE: int = Field(default=100, description="Default pagination page size")
+    MAX_PAGE_SIZE: int = Field(default=500, description="Maximum pagination page size")
+    MIN_PAGE_SIZE: int = Field(default=1, description="Minimum pagination page size")
+
+    # Webhook Settings (additional)
+    WEBHOOK_MESSAGE_MAX_LENGTH: int = Field(default=10000, description="Maximum webhook message length")
+    WEBHOOK_TIMEOUT_SECONDS: int = Field(default=30, description="Webhook request timeout")
+
+    # Database Connection Settings (additional)
+    DB_POOL_RECYCLE_SECONDS: int = Field(default=3600, description="Recycle DB connections after N seconds")
+    DB_POOL_PRE_PING: bool = Field(default=True, description="Verify connections before using")
+    DB_CONNECT_TIMEOUT: int = Field(default=10, description="Database connection timeout in seconds")
+    DB_RETRY_ATTEMPTS: int = Field(default=3, description="Number of retry attempts for DB operations")
+    DB_RETRY_DELAY: float = Field(default=1.0, description="Delay between retry attempts in seconds")
+
+    # HTTP Client Settings
+    HTTP_TIMEOUT_SECONDS: int = Field(default=30, description="HTTP client timeout")
+    HTTP_MAX_RETRIES: int = Field(default=3, description="Maximum HTTP request retries")
+
+    # Security Settings
+    PASSWORD_MIN_LENGTH: int = Field(default=8, description="Minimum password length")
+    PASSWORD_MAX_LENGTH: int = Field(default=72, description="Maximum password length (bcrypt limit)")
+    JWT_SECRET_MIN_LENGTH: int = Field(default=32, description="Minimum JWT secret key length")
 
     # Notification Settings
     NOTIFICATION_REMINDER_24H: bool = Field(default=True, description="Enable 24-hour appointment reminders")

@@ -58,7 +58,7 @@ async def verify_webhook_signature(
         )
 
 
-def sanitize_message_text(text: str, max_length: int = 10000) -> str:
+def sanitize_message_text(text: str, max_length: int = settings.WEBHOOK_MESSAGE_MAX_LENGTH) -> str:
     """
     Sanitize and validate message text.
 

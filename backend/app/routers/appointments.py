@@ -36,7 +36,7 @@ async def list_appointments(
     status: str | None = Query(None, description="Filter by status"),
     customer_id: int | None = Query(None, description="Filter by customer ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
+    limit: int = Query(settings.DEFAULT_PAGE_SIZE, ge=settings.MIN_PAGE_SIZE, le=settings.MAX_PAGE_SIZE, description="Maximum number of records"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Appointment]:
