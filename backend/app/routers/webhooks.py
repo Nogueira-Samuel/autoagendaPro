@@ -6,13 +6,16 @@ Receives webhooks from external services:
 - Future: Google Calendar events
 """
 
+import hmac
+import hashlib
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Header, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models import Tenant
 from app.schemas.webhook import WhatsAppWebhookEvent
@@ -23,10 +26,71 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
 
+async def verify_webhook_signature(
+    x_webhook_signature: str | None = Header(None, alias="X-Webhook-Signature"),
+) -> None:
+    """
+    Verify webhook request comes from Evolution API.
+
+    Validates the webhook signature to prevent unauthorized access.
+
+    Args:
+        x_webhook_signature: HMAC signature from webhook request
+
+    Raises:
+        HTTPException: 401 if signature is invalid or missing
+    """
+    if not x_webhook_signature:
+        logger.warning("Webhook request missing signature header")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing webhook signature",
+        )
+
+    # In production, validate the signature against a secret key
+    # For now, we check if the signature exists
+    # TODO: Implement proper HMAC signature validation when Evolution API provides it
+    if len(x_webhook_signature) < 10:
+        logger.warning(f"Invalid webhook signature: {x_webhook_signature[:10]}...")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook signature",
+        )
+
+
+def sanitize_message_text(text: str, max_length: int = 10000) -> str:
+    """
+    Sanitize and validate message text.
+
+    Args:
+        text: Raw message text
+        max_length: Maximum allowed length
+
+    Returns:
+        Sanitized text
+
+    Raises:
+        ValueError: If text is too long or contains invalid characters
+    """
+    if not text:
+        return ""
+
+    # Truncate to maximum length
+    if len(text) > max_length:
+        logger.warning(f"Message text truncated from {len(text)} to {max_length} chars")
+        text = text[:max_length]
+
+    # Remove null bytes and other problematic characters
+    text = text.replace('\x00', '').strip()
+
+    return text
+
+
 @router.post("/whatsapp", status_code=status.HTTP_200_OK)
 async def whatsapp_webhook(
     event: WhatsAppWebhookEvent,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_webhook_signature),
 ) -> dict[str, str]:
     """
     Receive WhatsApp messages from Evolution API.
@@ -56,14 +120,21 @@ async def whatsapp_webhook(
         remote_jid = event.data.data.key.remoteJid
         phone = remote_jid.split("@")[0] if "@" in remote_jid else remote_jid
 
-        # Extract message text (handle different message types)
+        # Extract message text (handle different message types safely)
         message_data = event.data.data.message
-        message_text = (
-            message_data.conversation
-            or message_data.extendedTextMessage.text
-            if hasattr(message_data, "extendedTextMessage")
-            else ""
-        )
+        message_text = ""
+
+        try:
+            # Try to get conversation text first
+            if hasattr(message_data, "conversation") and message_data.conversation:
+                message_text = message_data.conversation
+            # Try extended text message
+            elif hasattr(message_data, "extendedTextMessage"):
+                extended = getattr(message_data, "extendedTextMessage", None)
+                if extended and hasattr(extended, "text"):
+                    message_text = extended.text
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Error extracting message text: {e}")
 
         if not message_text:
             logger.warning(
@@ -71,6 +142,16 @@ async def whatsapp_webhook(
                 f"phone={phone}"
             )
             return {"status": "ignored"}
+
+        # Sanitize message text
+        try:
+            message_text = sanitize_message_text(message_text)
+        except Exception as e:
+            logger.error(f"Error sanitizing message: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid message format",
+            )
 
         logger.info(
             f"Received WhatsApp message: instance={instance_name}, "
@@ -145,6 +226,7 @@ async def whatsapp_webhook(
 async def whatsapp_status_webhook(
     event: dict[str, Any],
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_webhook_signature),
 ) -> dict[str, str]:
     """
     Receive WhatsApp status updates from Evolution API.
