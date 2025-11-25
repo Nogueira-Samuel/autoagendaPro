@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from app.config import settings
-from app.models.appointment import Appointment
+from app.models.appointment import Appointment, AppointmentStatus
 from app.models.notification_log import NotificationLog
 from app.services.notification_service import NotificationService
 
@@ -50,7 +50,7 @@ async def send_24h_reminders_job():
         # Find appointments for tomorrow that are confirmed
         appointments = db.query(Appointment).filter(
             Appointment.scheduled_date == tomorrow,
-            Appointment.status == 'confirmed'
+            Appointment.status == AppointmentStatus.CONFIRMED
         ).all()
 
         logger.info(f"Found {len(appointments)} appointments for tomorrow")
@@ -93,7 +93,7 @@ async def send_1h_reminders_job():
         today = now.date()
         appointments = db.query(Appointment).filter(
             Appointment.scheduled_date == today,
-            Appointment.status == 'confirmed'
+            Appointment.status == AppointmentStatus.CONFIRMED
         ).all()
 
         # Filter by time (within next hour)
@@ -152,7 +152,7 @@ async def send_thanks_job():
         # Find completed appointments from yesterday
         appointments = db.query(Appointment).filter(
             Appointment.scheduled_date == yesterday,
-            Appointment.status == 'completed'
+            Appointment.status == AppointmentStatus.COMPLETED
         ).all()
 
         logger.info(f"Found {len(appointments)} completed appointments from yesterday")

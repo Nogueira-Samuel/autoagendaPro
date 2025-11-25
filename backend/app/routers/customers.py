@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Customer, Appointment, User
+from app.models.appointment import AppointmentStatus
 from app.schemas.customer import (
     CustomerCreate,
     CustomerUpdate,
@@ -186,7 +187,7 @@ async def get_customer_appointments(
     query = select(Appointment).where(Appointment.customer_id == customer_id)
 
     if not include_cancelled:
-        query = query.where(Appointment.status != "cancelled")
+        query = query.where(Appointment.status != AppointmentStatus.CANCELLED)
 
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
