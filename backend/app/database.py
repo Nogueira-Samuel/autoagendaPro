@@ -61,8 +61,6 @@ class DatabaseManager:
                     "user":     _user,
                     "password": _password,
                     "database": _database,
-                    "statement_cache_size":          0,
-                    "prepared_statement_cache_size": 0,
                 },
             )
 
