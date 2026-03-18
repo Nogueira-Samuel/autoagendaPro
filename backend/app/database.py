@@ -45,7 +45,7 @@ class DatabaseManager:
             _password = unquote(parsed.password) if parsed.password else None
             _database = parsed.path.lstrip("/")
 
-            clean_url = f"postgresql+asyncpg://{_host}:{_port}/{_database}"
+            clean_url = f"postgresql+asyncpg://{_host}:{_port}/{_database}?prepared_statement_cache_size=0&statement_cache_size=0"
 
             pool_class = NullPool if settings.ENVIRONMENT == "test" else QueuePool
 
