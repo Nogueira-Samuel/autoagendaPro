@@ -5,6 +5,7 @@ Configuração do SQLAlchemy com suporte assíncrono para PostgreSQL (Supabase).
 """
 
 from typing import AsyncGenerator
+from urllib.parse import urlparse, unquote
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     AsyncEngine,
@@ -53,17 +54,21 @@ class DatabaseManager:
             # Configuração do pool de conexões
             pool_class = NullPool if settings.ENVIRONMENT == "test" else QueuePool
 
+            parsed = urlparse(database_url)
             cls._engine = create_async_engine(
                 database_url,
                 echo=settings.DB_ECHO,
-                pool_size=settings.DB_POOL_SIZE,
-                max_overflow=settings.DB_MAX_OVERFLOW,
                 poolclass=pool_class,
                 pool_pre_ping=True,  # Verifica conexões antes de usar
                 pool_recycle=3600,   # Recicla conexões após 1 hora
                 connect_args={
                     "statement_cache_size": 0,
                     "prepared_statement_cache_size": 0,
+                    "host": parsed.hostname,
+                    "port": parsed.port,
+                    "user": unquote(parsed.username),
+                    "password": unquote(parsed.password),
+                    "database": parsed.path.lstrip("/"),
                 }
             )
 
