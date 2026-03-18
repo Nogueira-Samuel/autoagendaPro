@@ -5,7 +5,6 @@ Configuração do SQLAlchemy com suporte assíncrono para PostgreSQL (Supabase).
 """
 
 from typing import AsyncGenerator
-from urllib.parse import urlparse, unquote
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     AsyncEngine,
@@ -51,6 +50,7 @@ class DatabaseManager:
                     "DATABASE_URL must start with postgresql:// or postgresql+asyncpg://"
                 )
 
+            from urllib.parse import urlparse, unquote
             parsed = urlparse(database_url)
             _host = parsed.hostname
             _port = parsed.port
