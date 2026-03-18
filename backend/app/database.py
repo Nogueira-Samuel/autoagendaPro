@@ -5,6 +5,7 @@ Configuração do SQLAlchemy com suporte assíncrono para PostgreSQL (Supabase).
 """
 
 from typing import AsyncGenerator
+from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     AsyncEngine,
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool, QueuePool
+from urllib.parse import urlparse, unquote
 
 from app.config import settings
 
@@ -39,22 +41,35 @@ class DatabaseManager:
             AsyncEngine: Engine assíncrono do SQLAlchemy
         """
         if cls._engine is None:
-            # Converte postgresql:// para postgresql+asyncpg://
+            # Parse DATABASE_URL to handle usernames with dots (Supabase pooler)
             database_url = settings.DATABASE_URL
-            if database_url.startswith("postgresql://"):
-                database_url = database_url.replace(
-                    "postgresql://", "postgresql+asyncpg://", 1
-                )
-            elif not database_url.startswith("postgresql+asyncpg://"):
-                raise ValueError(
-                    "DATABASE_URL must start with postgresql:// or postgresql+asyncpg://"
-                )
+
+            # Parse the URL components
+            parsed = urlparse(database_url)
+
+            # Extract components with proper unquoting
+            username = unquote(parsed.username) if parsed.username else None
+            password = unquote(parsed.password) if parsed.password else None
+            host = parsed.hostname
+            port = parsed.port or 5432
+            database = parsed.path.lstrip('/') if parsed.path else 'postgres'
+
+            # Create URL object with asyncpg driver
+            # This properly handles usernames with dots
+            url = URL.create(
+                drivername="postgresql+asyncpg",
+                username=username,
+                password=password,
+                host=host,
+                port=port,
+                database=database,
+            )
 
             # Configuração do pool de conexões
             pool_class = NullPool if settings.ENVIRONMENT == "test" else QueuePool
 
             cls._engine = create_async_engine(
-                database_url,
+                url,
                 echo=settings.DB_ECHO,
                 pool_size=settings.DB_POOL_SIZE,
                 max_overflow=settings.DB_MAX_OVERFLOW,
@@ -64,7 +79,9 @@ class DatabaseManager:
                 connect_args={
                     "statement_cache_size": 0,
                     "prepared_statement_cache_size": 0,
-                    "timeout": settings.DB_CONNECT_TIMEOUT,
+                    "server_settings": {
+                        "search_path": "public"
+                    }
                 }
             )
 
