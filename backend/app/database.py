@@ -40,7 +40,7 @@ class DatabaseManager:
 
             parsed = urlparse(raw_url)
             _host     = parsed.hostname
-            _port     = parsed.port or 5432
+            _port = int(parsed.port) if parsed.port else 5432
             _user     = unquote(parsed.username) if parsed.username else None
             _password = unquote(parsed.password) if parsed.password else None
             _database = parsed.path.lstrip("/")
@@ -61,6 +61,7 @@ class DatabaseManager:
                     "user":     _user,
                     "password": _password,
                     "database": _database,
+                    "statement_cache_size": 0,
                 },
             )
 
