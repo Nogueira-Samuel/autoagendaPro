@@ -16,7 +16,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
-from app.database import DatabaseManager, create_tables
+from app.database import get_db, DatabaseManager, create_tables
 from app.scheduler import start_scheduler, stop_scheduler
 
 # Configuração de logging
