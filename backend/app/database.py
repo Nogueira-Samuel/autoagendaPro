@@ -51,10 +51,16 @@ class DatabaseManager:
                     "DATABASE_URL must start with postgresql:// or postgresql+asyncpg://"
                 )
 
+            parsed = urlparse(database_url)
+            _host = parsed.hostname
+            _port = parsed.port
+            _user = unquote(parsed.username) if parsed.username else None
+            _password = unquote(parsed.password) if parsed.password else None
+            _database = parsed.path.lstrip("/")
+
             # Configuração do pool de conexões
             pool_class = NullPool if settings.ENVIRONMENT == "test" else QueuePool
 
-            parsed = urlparse(database_url)
             cls._engine = create_async_engine(
                 database_url,
                 echo=settings.DB_ECHO,
@@ -64,11 +70,11 @@ class DatabaseManager:
                 connect_args={
                     "statement_cache_size": 0,
                     "prepared_statement_cache_size": 0,
-                    "host": parsed.hostname,
-                    "port": parsed.port,
-                    "user": unquote(parsed.username),
-                    "password": unquote(parsed.password),
-                    "database": parsed.path.lstrip("/"),
+                    "host": _host,
+                    "port": _port,
+                    "user": _user,
+                    "password": _password,
+                    "database": _database,
                 }
             )
 
